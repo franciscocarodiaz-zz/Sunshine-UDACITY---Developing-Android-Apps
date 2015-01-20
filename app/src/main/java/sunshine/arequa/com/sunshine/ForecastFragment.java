@@ -39,6 +39,13 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
     private final int INTENT_EXPLICIT = 0;
     private final int INTENT_IMPLICIT = 1;
 
+    private ListView mListView;
+    private int mPosition = ListView.INVALID_POSITION;
+
+    private boolean mUseTodayLayout;
+
+    private static final String SELECTED_KEY = "selected_position";
+
     private static final String[] FORECAST_COLUMNS = {
 // In this case the id needs to be fully qualified with a table name, since
 // the content provider joins the location & weather tables in the background
@@ -63,12 +70,25 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
     public static final int COL_WEATHER_MIN_TEMP = 4;
     public static final int COL_LOCATION_SETTING = 5;
     public static final int COL_WEATHER_CONDITION_ID = 6;
+
+    /**
+     * A callback interface that all activities containing this fragment must
+     * implement. This mechanism allows activities to be notified of item
+     * selections.
+     */
+    public interface Callback {
+        /**
+         * DetailFragmentCallback for when an item has been selected.
+         */
+        public void onItemSelected(String date);
+    }
+
     public ForecastFragment() {
     }
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-// Add this line in order for this fragment to handle menu events.
+        // Add this line in order for this fragment to handle menu events.
         setHasOptionsMenu(true);
     }
     @Override
@@ -77,9 +97,9 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
     }
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-// Handle action bar item clicks here. The action bar will
-// automatically handle clicks on the Home/Up button, so long
-// as you specify a parent activity in AndroidManifest.xml.
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_refresh) {
             updateWeather();
@@ -93,6 +113,7 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
 
 
         mForecastAdapter = new ForecastAdapter(getActivity(),null,0);
+        mForecastAdapter.setUseTodayLayout(mUseTodayLayout);
         /*
         // Using simple adaptor, without SimpleCursorAdapter
         // The SimpleCursorAdapter will take data from the database through the
@@ -140,18 +161,30 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
         */
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 // Get a reference to the ListView, and attach this adapter to it.
-        ListView listView = (ListView) rootView.findViewById(R.id.listview_forecast);
-        listView.setAdapter(mForecastAdapter);
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        mListView = (ListView) rootView.findViewById(R.id.listview_forecast);
+        mListView.setAdapter(mForecastAdapter);
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
-                Cursor cursor = mForecastAdapter.getCursor();
+                //Cursor cursor = mForecastAdapter.getCursor();
+                ForecastAdapter adapter = (ForecastAdapter)adapterView.getAdapter();
+                Cursor cursor = adapter.getCursor();
+
+                String dateStringToPass = "";
                 if (cursor != null && cursor.moveToPosition(position)) {
+                    dateStringToPass = cursor.getString(COL_WEATHER_DATE);
+                    ((Callback)getActivity()).onItemSelected(dateStringToPass);
+                }
+                mPosition = position;
+                // This code is to pass info from another activity without using fragment
+                /*
+                if (cursor != null && cursor.moveToPosition(position)) {
+                    dateStringToPass = cursor.getString(COL_WEATHER_DATE);
                     Intent intent = new Intent(getActivity(), DetailActivity.class)
-                            .putExtra(DetailActivity.DATE_KEY, cursor.getString(COL_WEATHER_DATE));
+                            .putExtra(DetailActivity.DATE_KEY, dateStringToPass);
                     startActivity(intent);
                 }
-
+                */
                 /*
                 SimpleCursorAdapter adapter = (SimpleCursorAdapter) adapterView.getAdapter();
                 Cursor cursor = adapter.getCursor();
@@ -173,6 +206,11 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
                 */
             }
         });
+
+        if (savedInstanceState != null && savedInstanceState.containsKey(SELECTED_KEY)) {
+            mPosition = savedInstanceState.getInt(SELECTED_KEY);
+         }
+
         return rootView;
     }
     @Override
@@ -192,12 +230,13 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
             getLoaderManager().restartLoader(FORECAST_LOADER, null, this);
         }
     }
-
+    /*
     @Override
     public void onStart() {
         super.onStart();
         updateWeather();
     }
+    */
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
 
@@ -220,6 +259,9 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
         mForecastAdapter.swapCursor(data);
+        if (mPosition != ListView.INVALID_POSITION) {
+            mListView.smoothScrollToPosition(mPosition);
+        }
     }
     @Override
     public void onLoaderReset(Loader<Cursor> loader) {
@@ -236,6 +278,14 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
                 break;
             default:break;
         }
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        if (mPosition != ListView.INVALID_POSITION) {
+            outState.putInt(SELECTED_KEY, mPosition);
+        }
+        super.onSaveInstanceState(outState);
     }
 
     private void launchExplicitIntent(String message) {
@@ -258,5 +308,12 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
             startActivity(sendIntent);
         }
 
+    }
+
+    public void setUseTodayLayout(boolean useTodayLayout) {
+        mUseTodayLayout = useTodayLayout;
+        if (mForecastAdapter != null) {
+            mForecastAdapter.setUseTodayLayout(mUseTodayLayout);
+        }
     }
 }

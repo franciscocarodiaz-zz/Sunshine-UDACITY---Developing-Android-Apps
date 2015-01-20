@@ -18,13 +18,28 @@ public class DetailActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
         if (savedInstanceState == null) {
+            // Without passing info between fragment
+//            getSupportFragmentManager().beginTransaction()
+//                    .add(R.id.container, new DetailFragment())
+//                    .commit();
+
+            // Create the detail fragment and add it to the activity
+            // using a fragment transaction, passing the info selected.
+            String date = getIntent().getStringExtra(DATE_KEY);
+
+            Bundle arguments = new Bundle();
+            arguments.putString(DetailActivity.DATE_KEY, date);
+
+            DetailFragment fragment = new DetailFragment();
+            fragment.setArguments(arguments);
+
             getSupportFragmentManager().beginTransaction()
-                    .add(R.id.container, new DetailFragment())
+                    .add(R.id.weather_detail_container, fragment)
                     .commit();
         }
         Log.v(LOG_TAG,"onCreate()");
     }
-
+    /*
     @Override
     public void onStart() {
         super.onStart();
@@ -54,7 +69,7 @@ public class DetailActivity extends ActionBarActivity {
         super.onDestroy();
         Log.v(LOG_TAG,"onDestroy()");
     }
-
+    */
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

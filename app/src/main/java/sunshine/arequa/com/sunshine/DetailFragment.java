@@ -39,6 +39,7 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
     private ShareActionProvider mShareActionProvider;
     private String mLocation;
     private String mForecast;
+    private String mDateStr;
     private static final int DETAIL_LOADER = 0;
 
     private static final String[] FORECAST_COLUMNS = {
@@ -76,18 +77,19 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
         outState.putString(LOCATION_KEY, mLocation);
         super.onSaveInstanceState(outState);
     }
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (mLocation != null &&
-                !mLocation.equals(Utility.getPreferredLocation(getActivity()))) {
-            getLoaderManager().restartLoader(DETAIL_LOADER, null, this);
-        }
-    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
+        Bundle arguments = getArguments();
+        if (arguments != null) {
+            mDateStr = arguments.getString(DetailActivity.DATE_KEY);
+        }
+        if (savedInstanceState != null) {
+            mLocation = savedInstanceState.getString(LOCATION_KEY);
+        }
+
         View rootView = inflater.inflate(R.layout.fragment_detail, container, false);
         mIconView = (ImageView) rootView.findViewById(R.id.detail_icon);
         mDateView = (TextView) rootView.findViewById(R.id.detail_date_textview);
@@ -99,20 +101,38 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
         mWindView = (TextView) rootView.findViewById(R.id.detail_wind_textview);
         mPressureView = (TextView) rootView.findViewById(R.id.detail_pressure_textview);
         return rootView;
-            /*
-            View rootView = inflater.inflate(R.layout.fragment_detail, container, false);
-            // The detail Activity called via intent.  Inspect the intent for forecast data.
-            Intent intent = getActivity().getIntent();
-            if (intent != null && intent.hasExtra(Intent.EXTRA_TEXT)) {
-                mForecastStr = intent.getStringExtra(Intent.EXTRA_TEXT);
-                ((TextView) rootView.findViewById(R.id.detail_text))
-                        .setText(mForecastStr);
-            }
-            return rootView;
-            */
-            /*
-            return inflater.inflate(R.layout.fragment_detail, container, false);
-            */
+        /*
+        View rootView = inflater.inflate(R.layout.fragment_detail, container, false);
+        // The detail Activity called via intent.  Inspect the intent for forecast data.
+        Intent intent = getActivity().getIntent();
+        if (intent != null && intent.hasExtra(Intent.EXTRA_TEXT)) {
+            mForecastStr = intent.getStringExtra(Intent.EXTRA_TEXT);
+            ((TextView) rootView.findViewById(R.id.detail_text))
+                    .setText(mForecastStr);
+        }
+        return rootView;
+        */
+        /*
+        return inflater.inflate(R.layout.fragment_detail, container, false);
+        */
+    }
+
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        /*
+        if (mLocation != null &&
+                !mLocation.equals(Utility.getPreferredLocation(getActivity()))) {
+            getLoaderManager().restartLoader(DETAIL_LOADER, null, this);
+        }
+        */
+        Bundle arguments = getArguments();
+        if (arguments != null && arguments.containsKey(DetailActivity.DATE_KEY) &&
+                mLocation != null &&
+                !mLocation.equals(Utility.getPreferredLocation(getActivity()))) {
+            getLoaderManager().restartLoader(DETAIL_LOADER, null, this);
+        }
     }
 
     @Override
@@ -142,26 +162,35 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
-        getLoaderManager().initLoader(DETAIL_LOADER, null, this);
+        super.onActivityCreated(savedInstanceState);
+
         if (savedInstanceState != null) {
             mLocation = savedInstanceState.getString(LOCATION_KEY);
         }
-        super.onActivityCreated(savedInstanceState);
+        getLoaderManager().initLoader(DETAIL_LOADER, null, this);
+
+        Bundle arguments = getArguments();
+        if (arguments != null && arguments.containsKey(DetailActivity.DATE_KEY)) {
+            getLoaderManager().initLoader(DETAIL_LOADER, null, this);
+        }
     }
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
         Log.v(LOG_TAG, "In onCreateLoader");
+        /*
         Intent intent = getActivity().getIntent();
         if (intent == null || !intent.hasExtra(DATE_KEY)) {
             return null;
         }
         String forecastDate = intent.getStringExtra(DATE_KEY);
-        // Sort order: Ascending, by date.
-        String sortOrder = WeatherContract.WeatherEntry.COLUMN_DATETEXT + " ASC";
+        */
+
         mLocation = Utility.getPreferredLocation(getActivity());
         Uri weatherForLocationUri = WeatherContract.WeatherEntry.buildWeatherLocationWithDate(
-                mLocation, forecastDate);
+                mLocation, mDateStr);
         Log.v(LOG_TAG, weatherForLocationUri.toString());
+
+        String sortOrder = WeatherContract.WeatherEntry.COLUMN_DATETEXT + " ASC";
         // Now create and return a CursorLoader that will take care of
         // creating a Cursor for the data being displayed.
         return new CursorLoader(
@@ -178,9 +207,7 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
         Log.v(LOG_TAG, "In onLoadFinished");
 
         String dateString = "", weatherDescription = "", highString = "", lowString = "";
-        if (!data.moveToFirst()) {
-            return;
-        }else if (data != null && data.moveToFirst()) {
+        if (data != null && data.moveToFirst()) {
             int weatherId = data.getInt(data.getColumnIndex(WeatherEntry.COLUMN_WEATHER_ID));
             // Use weather art image
             mIconView.setImageResource(Utility.getArtResourceForWeatherCondition(weatherId));
@@ -196,7 +223,7 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
             weatherDescription = data.getString(data.getColumnIndex(
                     WeatherContract.WeatherEntry.COLUMN_SHORT_DESC));
             mDescriptionView.setText(weatherDescription);
-
+            mIconView.setContentDescription(weatherDescription);
             // Read high temperature from cursor and update view
             boolean isMetric = Utility.isMetric(getActivity());
             double high = data.getDouble(data.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_MAX_TEMP));
@@ -220,6 +247,15 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
             // Read pressure from cursor and update view
             float pressure = data.getFloat(data.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_PRESSURE));
             mPressureView.setText(getActivity().getString(R.string.format_pressure, pressure));
+
+            // We still need this for the share intent
+            mForecast = String.format("%s - %s - %s/%s", dateString, weatherDescription, highString, lowString);
+            Log.v(LOG_TAG, "Forecast String: " + mForecast);
+
+            // If onCreateOptionsMenu has already happened, we need to update the share intent now.
+            if (mShareActionProvider != null) {
+                mShareActionProvider.setShareIntent(createShareForecastIntent());
+            }
         }
             /* Without design in detail screen
             String dateString = Utility.formatDate(
@@ -239,14 +275,7 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
             ((TextView) getView().findViewById(R.id.detail_low_textview)).setText(low);
             */
 
-        // We still need this for the share intent
-        mForecast = String.format("%s - %s - %s/%s", dateString, weatherDescription, highString, lowString);
-        Log.v(LOG_TAG, "Forecast String: " + mForecast);
 
-        // If onCreateOptionsMenu has already happened, we need to update the share intent now.
-        if (mShareActionProvider != null) {
-            mShareActionProvider.setShareIntent(createShareForecastIntent());
-        }
     }
     @Override
     public void onLoaderReset(Loader<Cursor> loader) { }
