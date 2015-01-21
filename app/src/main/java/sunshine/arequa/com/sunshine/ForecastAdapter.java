@@ -70,10 +70,10 @@ public class ForecastAdapter extends CursorAdapter {
         //Determine layoutId from viewType
         switch (viewType){
             case VIEW_TYPE_TODAY:
-                layoutId = R.layout.list_item_forecast;
+                layoutId = R.layout.list_item_forecast_today;
                 break;
             case VIEW_TYPE_FUTURE_DAY:
-                layoutId = R.layout.list_item_forecast_today;
+                layoutId = R.layout.list_item_forecast;
                 break;
         }
 

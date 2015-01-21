@@ -8,6 +8,10 @@ import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceManager;
+
+import sunshine.arequa.com.sunshine.data.WeatherContract;
+import sunshine.arequa.com.sunshine.sync.SunshineSyncAdapter;
+
 /**
  * A {@link PreferenceActivity} that presents a set of application settings.
  * <p>
@@ -18,6 +22,9 @@ import android.preference.PreferenceManager;
  */
 public class SettingsActivity extends PreferenceActivity
         implements Preference.OnPreferenceChangeListener {
+
+    boolean mBindingPreference;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,17 +42,36 @@ public class SettingsActivity extends PreferenceActivity
      * is changed.)
      */
     private void bindPreferenceSummaryToValue(Preference preference) {
-// Set the listener to watch for value changes.
+        mBindingPreference = true;
+        // Set the listener to watch for value changes.
         preference.setOnPreferenceChangeListener(this);
-// Trigger the listener immediately with the preference's
-// current value.
+        // Trigger the listener immediately with the preference's
+        // current value.
         onPreferenceChange(preference,
                 PreferenceManager
                         .getDefaultSharedPreferences(preference.getContext())
                         .getString(preference.getKey(), ""));
+        mBindingPreference = false;
     }
     @Override
     public boolean onPreferenceChange(Preference preference, Object value) {
+
+        // are we starting the preference activity?
+        if ( !mBindingPreference ) {
+            if (preference.getKey().equals(getString(R.string.pref_location_key))) {
+                SunshineSyncAdapter.syncImmediately(this);
+
+                /*
+                FetchWeatherTask weatherTask = new FetchWeatherTask(this);
+                String location = value.toString();
+                weatherTask.execute(location);
+                 */
+            } else {
+                // notify code that weather may be impacted
+                getContentResolver().notifyChange(WeatherContract.WeatherEntry.CONTENT_URI, null);
+            }
+        }
+
         String stringValue = value.toString();
         if (preference instanceof ListPreference) {
 // For list preferences, look up the correct display value in
