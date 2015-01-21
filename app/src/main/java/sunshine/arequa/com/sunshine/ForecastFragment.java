@@ -1,6 +1,9 @@
 package sunshine.arequa.com.sunshine;
 
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -25,6 +28,7 @@ import java.util.Date;
 import sunshine.arequa.com.sunshine.data.WeatherContract;
 import sunshine.arequa.com.sunshine.data.WeatherContract.LocationEntry;
 import sunshine.arequa.com.sunshine.data.WeatherContract.WeatherEntry;
+import sunshine.arequa.com.sunshine.service.SunshineService;
 
 /**
  * Created by franciscocarodiaz on 14/01/15.
@@ -219,8 +223,24 @@ public class ForecastFragment extends Fragment implements LoaderCallbacks<Cursor
         super.onActivityCreated(savedInstanceState);
     }
     private void updateWeather() {
-        String location = Utility.getPreferredLocation(getActivity());
-        new FetchWeatherTask(getActivity()).execute(location);
+//        String location = Utility.getPreferredLocation(getActivity());
+//        new FetchWeatherTask(getActivity()).execute(location);
+        /*
+        // Without BroadCast Alarm
+        Intent intent = new Intent(getActivity(), SunshineService.class);
+        intent.putExtra(SunshineService.LOCATION_QUERY_EXTRA,
+                Utility.getPreferredLocation(getActivity()));
+        getActivity().startService(intent);
+        */
+
+        // Using Broadcast Alarm
+        Intent alarmIntent = new Intent(getActivity(), SunshineService.AlarmReceiver.class);
+        alarmIntent.putExtra(SunshineService.LOCATION_QUERY_EXTRA, mLocation);
+
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(getActivity(),0,alarmIntent,PendingIntent.FLAG_ONE_SHOT);
+
+        AlarmManager alarmManager = (AlarmManager)getActivity().getSystemService(Context.ALARM_SERVICE);
+        alarmManager.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 5000, pendingIntent);
     }
 
     @Override
